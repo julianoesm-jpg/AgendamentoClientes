@@ -64,16 +64,51 @@ function carregarHorarios() {
     });
 }
 
+<script>
 function agendar(hora) {
     const nome = prompt("Seu nome:");
     if (!nome) return;
+
+    const whatsapp = prompt("Seu WhatsApp:");
+    if (!whatsapp) return;
+
+    // pegar serviços cadastrados
+    const servicos = JSON.parse(localStorage.getItem("servicos")) || [];
+
+    if (servicos.length === 0) {
+        alert("Nenhum serviço disponível no momento.");
+        return;
+    }
+
+    // menu de serviços
+    const servico = prompt(
+        "Escolha um serviço disponível:\n" +
+        servicos.map((s, i) => `${i+1} - ${s}`).join("\n")
+    );
+
+    const index = parseInt(servico) - 1;
+
+    if (index < 0 || index >= servicos.length) {
+        alert("Serviço inválido!");
+        return;
+    }
+
+    const servicoEscolhido = servicos[index];
 
     const data = document.getElementById("data").value;
     let horarios = getHorarios();
 
     horarios[data] = horarios[data].map(h =>
         h.hora === hora 
-        ? { hora:h.hora, ocupado:true, cliente:nome } 
+        ? { 
+            hora: h.hora, 
+            ocupado: true, 
+            cliente: { 
+                nome: nome, 
+                whatsapp: whatsapp, 
+                servico: servicoEscolhido 
+            } 
+        }
         : h
     );
 
@@ -82,6 +117,3 @@ function agendar(hora) {
     alert("Agendamento confirmado!");
 }
 </script>
-
-</body>
-</html>
