@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+<meta charset="UTF-8">
+<title>Painel do Gestor</title>
+<style>
+    body { font-family: Arial; padding:20px; background:#f7f7f7; }
+    .container {
+        max-width: 600px; margin:auto; background:white; padding:20px;
+        border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1);
+    }
+    .btn {
+        background:black; color:white; padding:10px;
+        border:none; border-radius:5px; cursor:pointer;
+        margin-top:10px;
+    }
+    .horarios button {
+        margin:5px; padding:10px; border:none; border-radius:5px;
+        background:#00995d; color:white; cursor:pointer;
+    }
+    .ocupado { background:#b72626 !important; }
+</style>
+</head>
+<body>
+
+<h1>Painel do Gestor</h1>
+<div class="container">
+
+    <label>Selecione a data:</label>
+    <input type="date" id="data" onchange="carregarHorarios()">
+
+    <h3>Horários cadastrados</h3>
+    <div id="listaHorarios" class="horarios"></div>
+
+    <hr>
+
+    <h3>Adicionar horário</h3>
+    <input type="time" id="novoHorario">
+    <button class="btn" onclick="adicionarHorario()">Adicionar</button>
+
+</div>
+
+<script>
+function getHorarios() {
+    return JSON.parse(localStorage.getItem("horarios")) || {};
+}
+
+function salvarHorarios(d) {
+    localStorage.setItem("horarios", JSON.stringify(d));
+}
+
+function carregarHorarios() {
+    const data = document.getElementById("data").value;
+    const lista = document.getElementById("listaHorarios");
+    lista.innerHTML = "";
+
+    if (!data) return;
+
+    const horarios = getHorarios();
+    const dia = horarios[data] || [];
+
+    dia.forEach(h => {
+        let btn = document.createElement("button");
+
+        if (h.ocupado) {
+            btn.classList.add("ocupado");
+            btn.textContent = `${h.hora} - ${h.cliente} (ocupado)`;
+        } else {
+            btn.textContent = h.hora + " (livre)";
+        }
+
+        btn.onclick = () => removerHorario(h.hora);
+        lista.appendChild(btn);
+    });
+}
+
+function adicionarHorario() {
+    const data = document.getElementById("data").value;
+    const hora = document.getElementById("novoHorario").value;
+
+    if (!data || !hora) {
+        alert("Selecione data e horário!");
+        return;
+    }
+
+    let horarios = getHorarios();
+    horarios[data] = horarios[data] || [];
+
+    if (horarios[data].some(h => h.hora === hora)) {
+        alert("Este horário já está cadastrado.");
+        return;
+    }
+
+    horarios[data].push({ hora:hora, ocupado:false, cliente:null });
+    salvarHorarios(horarios);
+    carregarHorarios();
+}
+
+function removerHorario(hora) {
+    if (!confirm("Deseja remover este horário?")) return;
+
+    const data = document.getElementById("data").value;
+    let horarios = getHorarios();
+
+    horarios[data] = horarios[data].filter(h => h.hora !== hora);
+
+    salvarHorarios(horarios);
+    carregarHorarios();
+}
+</script>
+
+</body>
+</html>
