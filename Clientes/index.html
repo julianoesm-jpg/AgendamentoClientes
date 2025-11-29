@@ -1,119 +1,158 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-    <meta charset="UTF-8">
-    <title>Agendamento - Cliente</title>
-    <style>
-        body { font-family: Arial; padding:20px; background:#f7f7f7; }
-        .container {
-            max-width: 600px; margin:auto; background:white; padding:20px;
-            border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1);
-        }
-        .horarios button {
-            margin:5px; padding:10px; background:#00995d; color:white;
-            border:none; border-radius:5px; cursor:pointer;
-        }
-        .horarios button.indisponivel {
-            background:#bdbdbd; cursor:not-allowed;
-        }
-    </style>
+<meta charset="UTF-8" />
+<title>Agendamento - Cliente</title>
+<style>
+  body { font-family: Arial, sans-serif; padding:20px; background:#f7f7f7; }
+  .container { max-width:700px; margin:auto; background:white; padding:20px; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.08); }
+  .horarios button { margin:5px; padding:10px 14px; background:#00995d; color:white; border:none; border-radius:6px; cursor:pointer; }
+  .horarios button.indisponivel { background:#bdbdbd; cursor:not-allowed; }
+  .overlay { position:fixed; inset:0; background:rgba(0,0,0,0.4); display:flex; align-items:center; justify-content:center; }
+  .modal { background:white; padding:18px; border-radius:8px; width:340px; box-shadow:0 6px 30px rgba(0,0,0,0.2); }
+  .modal input, .modal select { width:100%; padding:8px; margin:6px 0; box-sizing:border-box; }
+  .modal .row { display:flex; gap:8px; }
+  .btn { padding:8px 12px; border-radius:6px; border:none; cursor:pointer; }
+  .btn.primary { background:#00995d; color:white; }
+  .btn.cancel { background:#ddd; }
+</style>
 </head>
 <body>
-
-<h1>Agendar Horário</h1>
-<div class="container">
-
+  <h1>Agendar Horário (Cliente)</h1>
+  <div class="container">
     <label>Selecione a data:</label>
-    <input type="date" id="data" onchange="carregarHorarios()">
+    <input type="date" id="data" onchange="carregarHorarios()" />
 
     <h3>Horários Disponíveis</h3>
     <div id="listaHorarios" class="horarios"></div>
+  </div>
 
-</div>
-
-<script>
-function getHorarios() {
-    return JSON.parse(localStorage.getItem("horarios")) || {};
-}
-
-function salvarHorarios(d) {
-    localStorage.setItem("horarios", JSON.stringify(d));
-}
-
-function carregarHorarios() {
-    const data = document.getElementById("data").value;
-    const lista = document.getElementById("listaHorarios");
-    lista.innerHTML = "";
-
-    if (!data) return;
-
-    const horarios = getHorarios();
-    const dia = horarios[data] || [];
-
-    dia.forEach(h => {
-        let btn = document.createElement("button");
-        btn.textContent = h.hora;
-
-        if (h.ocupado) {
-            btn.classList.add("indisponivel");
-        } else {
-            btn.onclick = () => agendar(h.hora);
-        }
-
-        lista.appendChild(btn);
-    });
-}
+  <!-- Modal dinâmico -->
+  <div id="modalRoot" style="display:none;"></div>
 
 <script>
-function agendar(hora) {
-    const nome = prompt("Seu nome:");
-    if (!nome) return;
+/* ===== Storage helpers ===== */
+function getHorarios(){ return JSON.parse(localStorage.getItem('horarios')) || {}; }
+function salvarHorarios(d){ localStorage.setItem('horarios', JSON.stringify(d)); }
+function getServicos(){ return JSON.parse(localStorage.getItem('servicos')) || []; }
 
-    const whatsapp = prompt("Seu WhatsApp:");
-    if (!whatsapp) return;
+/* ===== Carregar horários visuais ===== */
+function carregarHorarios(){
+  const data = document.getElementById('data').value;
+  const lista = document.getElementById('listaHorarios');
+  lista.innerHTML = '';
+  if(!data) return;
 
-    // pegar serviços cadastrados
-    const servicos = JSON.parse(localStorage.getItem("servicos")) || [];
+  const horarios = getHorarios();
+  const dia = horarios[data] || [];
 
-    if (servicos.length === 0) {
-        alert("Nenhum serviço disponível no momento.");
-        return;
+  if(dia.length === 0){
+    lista.innerHTML = '<small>Nenhum horário cadastrado nesta data.</small>';
+    return;
+  }
+
+  dia.forEach(h => {
+    const btn = document.createElement('button');
+    btn.textContent = h.hora;
+    if(h.ocupado){
+      btn.classList.add('indisponivel');
+      btn.textContent = `${h.hora} — ${h.cliente.nome}`;
+      // opcional: ver detalhes ao clicar (não agendar)
+      btn.onclick = () => mostrarDetalhes(h);
+    } else {
+      btn.onclick = () => abrirModalAgendamento(data, h.hora);
     }
-
-    // menu de serviços
-    const servico = prompt(
-        "Escolha um serviço disponível:\n" +
-        servicos.map((s, i) => `${i+1} - ${s}`).join("\n")
-    );
-
-    const index = parseInt(servico) - 1;
-
-    if (index < 0 || index >= servicos.length) {
-        alert("Serviço inválido!");
-        return;
-    }
-
-    const servicoEscolhido = servicos[index];
-
-    const data = document.getElementById("data").value;
-    let horarios = getHorarios();
-
-    horarios[data] = horarios[data].map(h =>
-        h.hora === hora 
-        ? { 
-            hora: h.hora, 
-            ocupado: true, 
-            cliente: { 
-                nome: nome, 
-                whatsapp: whatsapp, 
-                servico: servicoEscolhido 
-            } 
-        }
-        : h
-    );
-
-    salvarHorarios(horarios);
-    carregarHorarios();
-    alert("Agendamento confirmado!");
+    lista.appendChild(btn);
+  });
 }
+
+/* ===== Modal de agendamento com campos (nome, whatsapp, serviço) ===== */
+function abrirModalAgendamento(data, hora){
+  const servicos = getServicos();
+  const modalRoot = document.getElementById('modalRoot');
+  if(servicos.length === 0){
+    alert('Nenhum serviço disponível no momento. Tente novamente mais tarde.');
+    return;
+  }
+
+  modalRoot.innerHTML = `
+    <div class="overlay">
+      <div class="modal">
+        <h3>Agendar ${hora} — ${data}</h3>
+        <input id="cliNome" placeholder="Seu nome" />
+        <input id="cliWhats" placeholder="WhatsApp (apenas números)" />
+        <select id="cliServico">${servicos.map(s => `<option>${s}</option>`).join('')}</select>
+        <div style="margin-top:8px; text-align:right;">
+          <button class="btn cancel" onclick="fecharModal()">Cancelar</button>
+          <button class="btn primary" onclick="confirmarAgendamento('${data}','${hora}')">Confirmar</button>
+        </div>
+      </div>
+    </div>
+  `;
+  modalRoot.style.display = 'block';
+  document.getElementById('cliNome').focus();
+}
+
+function fecharModal(){
+  const modalRoot = document.getElementById('modalRoot');
+  modalRoot.style.display = 'none';
+  modalRoot.innerHTML = '';
+}
+
+/* ===== Confirmar agendamento ===== */
+function confirmarAgendamento(data, hora){
+  const nome = document.getElementById('cliNome').value.trim();
+  const whatsapp = document.getElementById('cliWhats').value.trim();
+  const servico = document.getElementById('cliServico').value;
+
+  if(!nome || !whatsapp || !servico){
+    alert('Preencha nome, WhatsApp e escolha um serviço.');
+    return;
+  }
+
+  // salvar
+  const horarios = getHorarios();
+  horarios[data] = (horarios[data] || []).map(h => {
+    if(h.hora === hora){
+      return {
+        hora: h.hora,
+        ocupado: true,
+        cliente: { nome, whatsapp, servico }
+      };
+    }
+    return h;
+  });
+
+  salvarHorarios(horarios);
+  fecharModal();
+  carregarHorarios();
+  alert('Agendamento confirmado! Obrigado.');
+}
+
+/* ===== Mostrar detalhes de agendamento (quando ocupado) ===== */
+function mostrarDetalhes(h){
+  const modalRoot = document.getElementById('modalRoot');
+  modalRoot.innerHTML = `
+    <div class="overlay">
+      <div class="modal">
+        <h3>Detalhes — ${h.hora}</h3>
+        <p><strong>Nome:</strong> ${h.cliente.nome}</p>
+        <p><strong>WhatsApp:</strong> ${h.cliente.whatsapp}</p>
+        <p><strong>Serviço:</strong> ${h.cliente.servico}</p>
+        <div style="text-align:right;">
+          <button class="btn cancel" onclick="fecharModal()">Fechar</button>
+        </div>
+      </div>
+    </div>
+  `;
+  modalRoot.style.display = 'block';
+}
+
+/* ===== On load helper prefill (opcional) ===== */
+window.addEventListener('load', () => {
+  // Se quiser pré-selecionar hoje
+  // document.getElementById('data').value = new Date().toISOString().slice(0,10);
+});
 </script>
+</body>
+</html>
