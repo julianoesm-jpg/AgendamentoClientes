@@ -1,166 +1,221 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-<meta charset="UTF-8">
+<meta charset="UTF-8" />
 <title>Painel do Gestor</title>
 <style>
-    body { font-family: Arial; padding:20px; background:#f7f7f7; }
-    .container {
-        max-width: 600px; margin:auto; background:white; padding:20px;
-        border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1);
-    }
-    .btn {
-        background:black; color:white; padding:10px;
-        border:none; border-radius:5px; cursor:pointer;
-        margin-top:10px;
-    }
-    .horarios button {
-        margin:5px; padding:10px; border:none; border-radius:5px;
-        background:#00995d; color:white; cursor:pointer;
-    }
-    .ocupado { background:#b72626 !important; }
+  body { font-family: Arial, sans-serif; padding:20px; background:#f7f7f7; }
+  .container { max-width:900px; margin:auto; background:white; padding:18px; border-radius:10px; box-shadow:0 0 12px rgba(0,0,0,0.07); }
+  .btn { background:#111; color:white; padding:8px 12px; border:none; border-radius:6px; cursor:pointer; margin-left:6px; }
+  input, select { padding:8px; }
+  .horarios button { margin:6px; padding:8px 12px; border:none; border-radius:6px; cursor:pointer; }
+  .ocupado { background:#b72626; color:white; }
+  .livre { background:#00995d; color:white; }
+  ul { padding-left:18px; }
+  .serv-row { display:flex; gap:8px; align-items:center; margin:6px 0; }
+  .card { padding:10px; border-radius:8px; background:#fafafa; margin:8px 0; }
 </style>
 </head>
 <body>
+  <h1>Painel do Gestor</h1>
+  <div class="container">
+    <div style="display:flex; gap:18px; flex-wrap:wrap;">
+      <div style="flex:1; min-width:260px;">
+        <h3>Serviços</h3>
+        <div class="serv-row">
+          <input id="novoServico" placeholder="Ex: Corte + Barba" />
+          <button class="btn" onclick="adicionarServico()">Adicionar</button>
+        </div>
+        <div id="listaServicos"></div>
+      </div>
 
-<h1>Painel do Gestor</h1>
-<div class="container">
+      <div style="flex:1; min-width:300px;">
+        <h3>Horários</h3>
+        <label>Selecione a data:</label>
+        <input type="date" id="data" onchange="carregarHorarios()" />
+        <div id="listaHorarios" class="horarios"></div>
 
-    <label>Selecione a data:</label>
-    <input type="date" id="data" onchange="carregarHorarios()">
+        <hr />
 
-    <h3>Horários cadastrados</h3>
-    <div id="listaHorarios" class="horarios"></div>
+        <div style="margin-top:8px;">
+          <label>Adicionar horário (HH:MM)</label><br />
+          <input type="time" id="novoHorario" />
+          <button class="btn" onclick="adicionarHorario()">Adicionar Horário</button>
+        </div>
+      </div>
+    </div>
 
-    <hr>
-
-    <h3>Adicionar horário</h3>
-    <input type="time" id="novoHorario">
-    <button class="btn" onclick="adicionarHorario()">Adicionar</button>
-
-</div>
+    <hr />
+    <h3>Reserva selecionada</h3>
+    <div id="detalhe" class="card">Selecione um horário ocupado para ver/editar.</div>
+  </div>
 
 <script>
-function getHorarios() {
-    return JSON.parse(localStorage.getItem("horarios")) || {};
+/* ===== Storage helpers ===== */
+function getHorarios(){ return JSON.parse(localStorage.getItem('horarios')) || {}; }
+function salvarHorarios(d){ localStorage.setItem('horarios', JSON.stringify(d)); }
+function getServicos(){ return JSON.parse(localStorage.getItem('servicos')) || []; }
+function salvarServicos(lista){ localStorage.setItem('servicos', JSON.stringify(lista)); }
+
+/* ===== Serviços management ===== */
+function carregarServicos(){
+  const ul = document.getElementById('listaServicos');
+  ul.innerHTML = '';
+  const servicos = getServicos();
+  if(servicos.length === 0) { ul.innerHTML = '<small>Nenhum serviço cadastrado.</small>'; return; }
+  servicos.forEach((s, i) => {
+    const div = document.createElement('div');
+    div.className = 'serv-row';
+    div.innerHTML = `<span>${s}</span>
+      <button class="btn" onclick="removerServico(${i})">Remover</button>`;
+    ul.appendChild(div);
+  });
+}
+function adicionarServico(){
+  const val = document.getElementById('novoServico').value.trim();
+  if(!val){ alert('Escreva o nome do serviço'); return; }
+  const servicos = getServicos();
+  servicos.push(val);
+  salvarServicos(servicos);
+  document.getElementById('novoServico').value = '';
+  carregarServicos();
+}
+function removerServico(i){
+  const servicos = getServicos();
+  servicos.splice(i,1);
+  salvarServicos(servicos);
+  carregarServicos();
 }
 
-function salvarHorarios(d) {
-    localStorage.setItem("horarios", JSON.stringify(d));
+/* ===== Horários management ===== */
+function carregarHorarios(){
+  const data = document.getElementById('data').value;
+  const lista = document.getElementById('listaHorarios');
+  lista.innerHTML = '';
+  if(!data) return;
+  const horarios = getHorarios();
+  const dia = horarios[data] || [];
+  if(dia.length === 0){ lista.innerHTML = '<small>Nenhum horário cadastrado.</small>'; return; }
+  dia.forEach(h => {
+    const btn = document.createElement('button');
+    btn.textContent = h.ocupado ? `${h.hora} — ${h.cliente.nome}` : `${h.hora} (livre)`;
+    btn.className = h.ocupado ? 'ocupado' : 'livre';
+    btn.onclick = () => selecionarHorario(data, h.hora);
+    lista.appendChild(btn);
+  });
 }
 
-function carregarHorarios() {
-    const data = document.getElementById("data").value;
-    const lista = document.getElementById("listaHorarios");
-    lista.innerHTML = "";
-
-    if (!data) return;
-
-    const horarios = getHorarios();
-    const dia = horarios[data] || [];
-
-    dia.forEach(h => {
-        let btn = document.createElement("button");
-
-        if (h.ocupado) {
-            btn.classList.add("ocupado");
-            btn.textContent = `${h.hora} - ${h.cliente} (ocupado)`;
-        } else {
-            btn.textContent = h.hora + " (livre)";
-        }
-
-        btn.onclick = () => removerHorario(h.hora);
-        lista.appendChild(btn);
-    });
+function adicionarHorario(){
+  const data = document.getElementById('data').value;
+  const hora = document.getElementById('novoHorario').value;
+  if(!data || !hora){ alert('Selecione data e horário'); return; }
+  const horarios = getHorarios();
+  horarios[data] = horarios[data] || [];
+  if(horarios[data].some(h => h.hora === hora)){ alert('Horário já existe'); return; }
+  horarios[data].push({ hora: hora, ocupado:false, cliente:null });
+  salvarHorarios(horarios);
+  carregarHorarios();
+  document.getElementById('novoHorario').value = '';
 }
-<h3>Serviços oferecidos</h3>
-<input type="text" id="novoServico" placeholder="Ex: Corte Masculino">
-<button class="btn" onclick="adicionarServico()">Adicionar Serviço</button>
 
-<ul id="listaServicos"></ul>
+/* ===== Selecionar / editar reservas ===== */
+let horarioSelecionado = null;
+function selecionarHorario(data, hora){
+  horarioSelecionado = { data, hora };
+  const horarios = getHorarios();
+  const h = (horarios[data] || []).find(x => x.hora === hora);
+  mostrarDetalhe(h);
+}
 
-function adicionarHorario() {
-    const data = document.getElementById("data").value;
-    const hora = document.getElementById("novoHorario").value;
+function mostrarDetalhe(h){
+  const detalhe = document.getElementById('detalhe');
+  if(!h){ detalhe.innerHTML = 'Nenhum horário selecionado.'; return; }
+  if(!h.ocupado){
+    detalhe.innerHTML = `
+      <div><strong>${h.hora} — livre</strong></div>
+      <div style="margin-top:8px;">
+        <button class="btn" onclick="removerHorarioConfirm()">Remover horário</button>
+      </div>
+    `;
+    return;
+  }
+  detalhe.innerHTML = `
+    <div><strong>${h.hora} — ${h.cliente.nome}</strong></div>
+    <div>WhatsApp: ${h.cliente.whatsapp}</div>
+    <div>Serviço: ${h.cliente.servico}</div>
+    <div style="margin-top:8px;">
+      <button class="btn" onclick="liberarHorario()">Liberar horário</button>
+      <button class="btn" onclick="removerHorarioConfirm()">Remover horário</button>
+      <button class="btn" onclick="editarCliente()">Editar dados</button>
+    </div>
+  `;
+}
 
-    if (!data || !hora) {
-        alert("Selecione data e horário!");
-        return;
+/* libera (desocupa) */
+function liberarHorario(){
+  if(!horarioSelecionado) return alert('Selecione um horário');
+  if(!confirm('Liberar este horário (remover reserva)?')) return;
+  const { data, hora } = horarioSelecionado;
+  const horarios = getHorarios();
+  horarios[data] = horarios[data].map(h => h.hora === hora ? { hora:h.hora, ocupado:false, cliente:null } : h);
+  salvarHorarios(horarios);
+  carregarHorarios();
+  mostrarDetalhe({ hora, ocupado:false, cliente:null });
+}
+
+/* remover horário inteiro */
+function removerHorarioConfirm(){
+  if(!horarioSelecionado) return alert('Selecione um horário');
+  if(!confirm('Remover esse horário da grade?')) return;
+  const { data, hora } = horarioSelecionado;
+  const horarios = getHorarios();
+  horarios[data] = (horarios[data] || []).filter(h => h.hora !== hora);
+  salvarHorarios(horarios);
+  carregarHorarios();
+  document.getElementById('detalhe').innerHTML = 'Horário removido.';
+  horarioSelecionado = null;
+}
+
+/* editar cliente (nome/whats/servico) */
+function editarCliente(){
+  if(!horarioSelecionado) return alert('Selecione um horário ocupado');
+  const { data, hora } = horarioSelecionado;
+  const horarios = getHorarios();
+  const arr = horarios[data] || [];
+  const idx = arr.findIndex(h => h.hora === hora);
+  if(idx === -1) return alert('Erro');
+  const h = arr[idx];
+  if(!h.ocupado) return alert('Horário não está ocupado');
+
+  const novoNome = prompt('Nome:', h.cliente.nome);
+  if(novoNome === null) return;
+  const novoWhats = prompt('WhatsApp:', h.cliente.whatsapp);
+  if(novoWhats === null) return;
+  const servicos = getServicos();
+  let novoServico = h.cliente.servico;
+  if(servicos.length) {
+    // cria menu simples via prompt
+    const escolha = prompt('Escolha serviço:\n' + servicos.map((s,i)=>`${i+1} - ${s}`).join('\n'));
+    if(escolha !== null){
+      const i = parseInt(escolha)-1;
+      if(!isNaN(i) && servicos[i]) novoServico = servicos[i];
     }
+  }
 
-    let horarios = getHorarios();
-    horarios[data] = horarios[data] || [];
-
-    if (horarios[data].some(h => h.hora === hora)) {
-        alert("Este horário já está cadastrado.");
-        return;
-    }
-
-    horarios[data].push({ hora:hora, ocupado:false, cliente:null });
-    salvarHorarios(horarios);
-    carregarHorarios();
+  horarios[data][idx].cliente = { nome: novoNome.trim(), whatsapp: novoWhats.trim(), servico: novoServico };
+  salvarHorarios(horarios);
+  carregarHorarios();
+  selecionarHorario(data,hora);
+  alert('Dados atualizados.');
 }
 
-function removerHorario(hora) {
-    if (!confirm("Deseja remover este horário?")) return;
-
-    const data = document.getElementById("data").value;
-    let horarios = getHorarios();
-
-    horarios[data] = horarios[data].filter(h => h.hora !== hora);
-
-    salvarHorarios(horarios);
-    carregarHorarios();
-}
-<script>
-
-function getServicos() {
-    return JSON.parse(localStorage.getItem("servicos")) || [];
-}
-
-function salvarServicos(lista) {
-    localStorage.setItem("servicos", JSON.stringify(lista));
-}
-
-function carregarServicos() {
-    const ul = document.getElementById("listaServicos");
-    ul.innerHTML = "";
-
-    const servicos = getServicos();
-
-    servicos.forEach((s, i) => {
-        let li = document.createElement("li");
-        li.innerHTML = `
-            ${s}
-            <button onclick="removerServico(${i})">Remover</button>
-        `;
-        ul.appendChild(li);
-    });
-}
-
-function adicionarServico() {
-    const s = document.getElementById("novoServico").value;
-    if (!s) return;
-
-    const servicos = getServicos();
-    servicos.push(s);
-
-    salvarServicos(servicos);
-    carregarServicos();
-}
-
-function removerServico(index) {
-    const servicos = getServicos();
-
-    servicos.splice(index, 1);
-    salvarServicos(servicos);
-    carregarServicos();
-}
-
-window.onload = () => carregarServicos();
+/* ===== Init load ===== */
+window.addEventListener('load', () => {
+  carregarServicos();
+  // opcional: seleciona hoje
+  // document.getElementById('data').value = new Date().toISOString().slice(0,10);
+});
 
 </script>
-
-
 </body>
 </html>
