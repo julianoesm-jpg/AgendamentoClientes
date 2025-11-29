@@ -73,6 +73,11 @@ function carregarHorarios() {
         lista.appendChild(btn);
     });
 }
+<h3>Serviços oferecidos</h3>
+<input type="text" id="novoServico" placeholder="Ex: Corte Masculino">
+<button class="btn" onclick="adicionarServico()">Adicionar Serviço</button>
+
+<ul id="listaServicos"></ul>
 
 function adicionarHorario() {
     const data = document.getElementById("data").value;
@@ -107,7 +112,55 @@ function removerHorario(hora) {
     salvarHorarios(horarios);
     carregarHorarios();
 }
+<script>
+
+function getServicos() {
+    return JSON.parse(localStorage.getItem("servicos")) || [];
+}
+
+function salvarServicos(lista) {
+    localStorage.setItem("servicos", JSON.stringify(lista));
+}
+
+function carregarServicos() {
+    const ul = document.getElementById("listaServicos");
+    ul.innerHTML = "";
+
+    const servicos = getServicos();
+
+    servicos.forEach((s, i) => {
+        let li = document.createElement("li");
+        li.innerHTML = `
+            ${s}
+            <button onclick="removerServico(${i})">Remover</button>
+        `;
+        ul.appendChild(li);
+    });
+}
+
+function adicionarServico() {
+    const s = document.getElementById("novoServico").value;
+    if (!s) return;
+
+    const servicos = getServicos();
+    servicos.push(s);
+
+    salvarServicos(servicos);
+    carregarServicos();
+}
+
+function removerServico(index) {
+    const servicos = getServicos();
+
+    servicos.splice(index, 1);
+    salvarServicos(servicos);
+    carregarServicos();
+}
+
+window.onload = () => carregarServicos();
+
 </script>
+
 
 </body>
 </html>
