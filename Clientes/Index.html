@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Agendamento - Cliente</title>
+    <style>
+        body { font-family: Arial; padding:20px; background:#f7f7f7; }
+        .container {
+            max-width: 600px; margin:auto; background:white; padding:20px;
+            border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1);
+        }
+        .horarios button {
+            margin:5px; padding:10px; background:#00995d; color:white;
+            border:none; border-radius:5px; cursor:pointer;
+        }
+        .horarios button.indisponivel {
+            background:#bdbdbd; cursor:not-allowed;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Agendar Horário</h1>
+<div class="container">
+
+    <label>Selecione a data:</label>
+    <input type="date" id="data" onchange="carregarHorarios()">
+
+    <h3>Horários Disponíveis</h3>
+    <div id="listaHorarios" class="horarios"></div>
+
+</div>
+
+<script>
+function getHorarios() {
+    return JSON.parse(localStorage.getItem("horarios")) || {};
+}
+
+function salvarHorarios(d) {
+    localStorage.setItem("horarios", JSON.stringify(d));
+}
+
+function carregarHorarios() {
+    const data = document.getElementById("data").value;
+    const lista = document.getElementById("listaHorarios");
+    lista.innerHTML = "";
+
+    if (!data) return;
+
+    const horarios = getHorarios();
+    const dia = horarios[data] || [];
+
+    dia.forEach(h => {
+        let btn = document.createElement("button");
+        btn.textContent = h.hora;
+
+        if (h.ocupado) {
+            btn.classList.add("indisponivel");
+        } else {
+            btn.onclick = () => agendar(h.hora);
+        }
+
+        lista.appendChild(btn);
+    });
+}
+
+function agendar(hora) {
+    const nome = prompt("Seu nome:");
+    if (!nome) return;
+
+    const data = document.getElementById("data").value;
+    let horarios = getHorarios();
+
+    horarios[data] = horarios[data].map(h =>
+        h.hora === hora 
+        ? { hora:h.hora, ocupado:true, cliente:nome } 
+        : h
+    );
+
+    salvarHorarios(horarios);
+    carregarHorarios();
+    alert("Agendamento confirmado!");
+}
+</script>
+
+</body>
+</html>
